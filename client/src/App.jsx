@@ -1,35 +1,47 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
 import TaskCard from './components/TaskCard'
 
 const App = () => {
   const [task, setTask] = useState('')
   const [taskArray, setTaskArray] = useState([])
+  const backendUrl = import.meta.env.VITE_BACKEND_URL
 
   const handleTaskChange = (taskValue) => {
     setTask(taskValue)
   }
 
-  const addTask = () => {
-    setTaskArray([
-      ...taskArray,
-      {
-        id: Date.now(),
-        title: task,
-        completed: false,
-      },
-    ])
-    console.log(taskArray)
+  const addTask = async () => {
+    const newTaskTitle = task
+    const response = await axios.post(backendUrl, { title: newTaskTitle })
+    console.log(response.data.message)
+    setTask('')
+    fetchAllTasks()
   }
 
-  const deleteTask = (taskId) => {
-    const updatedArray = taskArray.filter((prev) => prev.id !== taskId)
-    setTaskArray(updatedArray)
+  const fetchAllTasks = async () => {
+    const response = await axios.get(backendUrl)
+
+    if (response) {
+      setTaskArray(response.data.tasks)
+    } else {
+      console.log(response.message)
+    }
   }
 
-  const onToggle = (taskId) => {
-    const updatedArray = taskArray.map((task)=>task.id ===taskId ? {...task,completed:!task.completed}:task)
-    setTaskArray(updatedArray)
+  const deleteTask = async (taskId) => {
+    const response = await axios.delete(`${backendUrl}/${taskId}`)
+    fetchAllTasks()
   }
+
+  const onToggle = async (taskId) => {
+    const response = await axios.put(`${backendUrl}/${taskId}`)
+    fetchAllTasks()
+  }
+
+  useEffect(() => {
+    fetchAllTasks()
+  }, [])
 
   return (
     <div className="  flex flex-col  gap-4 items-center bg-gray-100  border">
@@ -50,9 +62,19 @@ const App = () => {
         </button>
       </div>
       <div className="">
-        {taskArray.map((task) => (
-          <TaskCard key={task.id} task={task} onDelete={deleteTask} onToggle={onToggle} />
-        ))}
+        {taskArray && taskArray.length > 0 ? (
+          taskArray.map((task) => (
+            <TaskCard
+              key={task._id}
+              task={task}
+              onDelete={deleteTask}
+              onToggle={onToggle}
+            />
+          ))
+        ) : (
+          <p>No tasks Available</p>
+        )}
+        {}
       </div>
     </div>
   )
