@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import TaskCard from './components/TaskCard'
+import { Analytics } from '@vercel/analytics/react'
 
 const App = () => {
   const [task, setTask] = useState('')
@@ -107,7 +108,7 @@ const App = () => {
   }, [taskArray])
 
   return (
-    <div className='flex justify-center items-center bg-gray-100 min-h-screen p-4'>
+    <div className="flex justify-center items-center bg-gray-100 min-h-screen p-4">
       <div className=" w-full max-w-3xl bg-white p-6 rounded-lg shadow-lg">
         <h1 className="text-2xl font-semibold text-center mb-6">To Do List</h1>
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -137,10 +138,11 @@ const App = () => {
               />
             ))
           ) : (
-            <p className='text-center text-gray-500'>No tasks Available</p>
+            <p className="text-center text-gray-500">No tasks Available</p>
           )}
           {}
         </div>
+        <Analytics />
       </div>
     </div>
   )
