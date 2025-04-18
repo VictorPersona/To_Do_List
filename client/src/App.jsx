@@ -5,18 +5,42 @@ import TaskCard from './components/TaskCard'
 const App = () => {
   const [task, setTask] = useState('')
   const [taskArray, setTaskArray] = useState([])
+  const [isAdding,setIsAdding] = useState(false)
   const backendUrl = import.meta.env.VITE_BACKEND_URL
+
+  if(!backendUrl){
+    console.error("Backend URL not found in .env")
+    return
+  }
 
   const handleTaskChange = (taskValue) => {
     setTask(taskValue)
   }
 
   const addTask = async () => {
-    const newTaskTitle = task
-    const response = await axios.post(backendUrl, { title: newTaskTitle })
-    console.log(response.data.message)
+    if(!task.trim()||isAdding)return
+   
+    const tempTask = { title: task, completed: false, _id: Date.now() }
+    setTaskArray([...taskArray, tempTask])
     setTask('')
-    fetchAllTasks()
+
+    try {
+      setIsAdding(true)
+      const response = await axios.post(backendUrl, { title: tempTask.title })
+      const createdTask = response.data.newTask
+
+      setTaskArray((prev) =>
+        prev.map((t) => (t._id === tempTask._id ? createdTask : t))
+      )
+     
+    } catch (error) {
+      console.log('Error in adding Task : ', error.message)
+      setTaskArray((prev) => prev.filter((t) => t._id !== tempTask._id))
+    }finally{
+       setIsAdding(false)
+    }
+
+    // fetchAllTasks()
   }
 
   const fetchAllTasks = async () => {
@@ -30,18 +54,60 @@ const App = () => {
   }
 
   const deleteTask = async (taskId) => {
-    const response = await axios.delete(`${backendUrl}/${taskId}`)
-    fetchAllTasks()
+    const taskToDelete = taskArray.find((t) => t._id === taskId)
+
+    setTaskArray((prev) => prev.filter((t) => t._id !== taskId))
+
+    try {
+      const response = await axios.delete(`${backendUrl}/${taskId}`)
+    } catch (error) {
+      console.log('Error while deleting task :', error)
+      setTaskArray([...taskArray, taskToDelete])
+    }
+
+    // fetchAllTasks()
   }
 
   const onToggle = async (taskId) => {
-    const response = await axios.put(`${backendUrl}/${taskId}`)
-    fetchAllTasks()
+    setTaskArray((prev) =>
+      prev.map((t) =>
+        t._id === taskId ? { ...t, completed: !t.completed } : t
+      )
+    )
+    try {
+      const response = await axios.put(`${backendUrl}/${taskId}`)
+    } catch (error) {
+      console.log('Error in updating task :', error)
+      setTaskArray((prev) =>
+        prev.map((t) =>
+          t._id === taskId ? { ...t, completed: !t.completed } : t
+        )
+      )
+    }
+
+    // fetchAllTasks()
   }
 
   useEffect(() => {
-    fetchAllTasks()
+
+    const loadTasks = async()=>{
+      try {
+        await fetchAllTasks()
+      } catch (error) {
+          const cached = localStorage.getItem('tasks')
+          if(cached){
+            setTaskArray(JSON.parse(cached))
+          }
+      }
+    }
+
+   loadTasks()
+    
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('tasks', JSON.stringify(taskArray))
+  }, [taskArray])
 
   return (
     <div className="  flex flex-col  gap-4 items-center bg-gray-100  border">
