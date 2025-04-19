@@ -27,11 +27,17 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
+    const { updatedTaskTitle, isUpdatedTaskComplete } = req.body
+
     const task = await Task.findById(req.params.id)
     if (!task) {
-    return  res.status(404).json({ message: 'Task Not Found' })
+      return res.status(404).json({ message: 'Task Not Found' })
     }
-    task.completed = !task.completed
+    if (!updatedTaskTitle || typeof isUpdatedTaskComplete != 'boolean') {
+      return res.status(400).json({ message: 'Invalid Input' })
+    }
+    task.title = updatedTaskTitle
+    task.completed = isUpdatedTaskComplete
     await task.save()
     res.status(200).json({ message: 'Task Updated Successfully', task })
   } catch (error) {
@@ -40,14 +46,14 @@ router.put('/:id', async (req, res) => {
 })
 
 router.delete('/:id', async (req, res) => {
-    try {
-        const task = await Task.findByIdAndDelete(req.params.id)
-        if(!task){
-            return res.status(404).json({message:"Task does not exist"})
-        }
-        res.json({message:"Task Deleted Successfulyy"})
-    } catch (error) {
-        res.status(400).json({message:error.message})
+  try {
+    const task = await Task.findByIdAndDelete(req.params.id)
+    if (!task) {
+      return res.status(404).json({ message: 'Task does not exist' })
     }
+    res.json({ message: 'Task Deleted Successfulyy' })
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
 })
 module.exports = router

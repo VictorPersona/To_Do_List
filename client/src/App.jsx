@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import TaskCard from './components/TaskCard'
 import { Analytics } from '@vercel/analytics/react'
@@ -7,6 +7,12 @@ const App = () => {
   const [task, setTask] = useState('')
   const [taskArray, setTaskArray] = useState([])
   const [isAdding, setIsAdding] = useState(false)
+
+  const [editingTaskId, setEditingTaskId] = useState(null)
+  const [editingTaskTitle, setEditingTaskTitle] = useState('')
+  const [editingTaskCompleted, setEditingTaskCompleted] = useState(false)
+  const inputRef = useRef(null)
+
   const backendUrl = import.meta.env.VITE_BACKEND_URL
 
   if (!backendUrl) {
@@ -68,19 +74,62 @@ const App = () => {
     // fetchAllTasks()
   }
 
-  const onToggle = async (taskId) => {
+  const onEdit = (task) => {
+    setEditingTaskTitle(task.title)
+    setEditingTaskCompleted(task.completed)
+    setTask(task.title)
+    setEditingTaskId(task._id)
+  }
+
+  const updateTitle = async (taskId) => {
+    if (task === editingTaskTitle) {
+      console.log('Both are same')
+      setTask('')
+      setEditingTaskId(null)
+      setEditingTaskTitle('')
+      return
+    }
+
+    const updatedArray = taskArray.map((t) =>
+      t._id === taskId ? { ...t, title: task } : t
+    )
+
+    setTaskArray(updatedArray)
+    setTask('')
+    try {
+      const response = await axios.put(`${backendUrl}/${taskId}`, {
+        updatedTaskTitle: task,
+        isUpdatedTaskComplete: editingTaskCompleted,
+      })
+    } catch (error) {
+      console.log('Error in updating task :', error)
+      setTaskArray(
+        taskArray.map((t) =>
+          t._id === taskId ? { ...t, title: editingTaskTitle } : t
+        )
+      )
+    } finally {
+      setEditingTaskId(null)
+      setEditingTaskTitle('')
+    }
+  }
+
+  const onToggle = async (task) => {
     setTaskArray((prev) =>
       prev.map((t) =>
-        t._id === taskId ? { ...t, completed: !t.completed } : t
+        t._id === task._id ? { ...t, completed: !t.completed } : t
       )
     )
     try {
-      const response = await axios.put(`${backendUrl}/${taskId}`)
+      const response = await axios.put(`${backendUrl}/${task._id}`, {
+        updatedTaskTitle: task.title,
+        isUpdatedTaskComplete: !task.completed,
+      })
     } catch (error) {
       console.log('Error in updating task :', error)
       setTaskArray((prev) =>
         prev.map((t) =>
-          t._id === taskId ? { ...t, completed: !t.completed } : t
+          t._id === task._id ? { ...t, completed: t.completed } : t
         )
       )
     }
@@ -104,6 +153,12 @@ const App = () => {
   }, [])
 
   useEffect(() => {
+    if (editingTaskId) {
+      inputRef.current?.focus()
+    }
+  }, [editingTaskId])
+
+  useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(taskArray))
   }, [taskArray])
 
@@ -114,18 +169,35 @@ const App = () => {
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
           <input
             className="w-full p-2 border border-gray-300 rounded-md "
+            ref={inputRef}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && editingTaskId) {
+                updateTitle(editingTaskId)
+              }
+            }}
             onChange={(e) => handleTaskChange(e.target.value)}
             type="text"
             value={task}
             placeholder="Enter Your Task"
           />
-          <button
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 shadow-md disabled:bg-gray-400 cursor-pointer"
-            onClick={() => addTask()}
-            disabled={isAdding || !task.trim()}
-          >
-            Add
-          </button>
+
+          {editingTaskId ? (
+            <button
+              className="bg-yellow-600 text-white font-semibold p-2 px-4 rounded-lg shadow-md cursor-pointer disabled:bg-gray-400 disabled:cursor-default"
+              disabled={!task.trim()}
+              onClick={() => updateTitle(editingTaskId)}
+            >
+              Save
+            </button>
+          ) : (
+            <button
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 shadow-md disabled:bg-gray-400 cursor-pointer"
+              onClick={() => addTask()}
+              disabled={isAdding || !task.trim()}
+            >
+              Add
+            </button>
+          )}
         </div>
         <div className="space-y-4">
           {taskArray && taskArray.length > 0 ? (
@@ -135,6 +207,7 @@ const App = () => {
                 task={task}
                 onDelete={deleteTask}
                 onToggle={onToggle}
+                onEdit={onEdit}
               />
             ))
           ) : (
