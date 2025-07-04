@@ -60,18 +60,13 @@ const App = () => {
   }
 
   const deleteTask = async (taskId) => {
-    const taskToDelete = taskArray.find((t) => t._id === taskId)
-
-    setTaskArray((prev) => prev.filter((t) => t._id !== taskId))
-
     try {
       const response = await axios.delete(`${backendUrl}/${taskId}`)
+
+      fetchAllTasks()
     } catch (error) {
       console.log('Error while deleting task :', error)
-      setTaskArray([...taskArray, taskToDelete])
     }
-
-    // fetchAllTasks()
   }
 
   const onEdit = (task) => {
